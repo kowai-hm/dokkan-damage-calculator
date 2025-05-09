@@ -115,7 +115,6 @@ def compute_damage(x, defense=defense, damage_reduction=damage_reduction, type_m
                    type_defense_boost=type_defense_boost, is_guard_activated=is_guard_activated):
     # Type defense boost only applies if natural type advantage is applicable
     should_apply_tdb = guard_multiplier == 0.5
-    print(should_apply_tdb)
     if is_guard_activated:
         type_multiplier = 0.8
         guard_multiplier = 0.5
