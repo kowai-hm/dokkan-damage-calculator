@@ -214,7 +214,7 @@ for name, x_boss in bosses.items():
     # Ligne verticale
     fig.add_trace(go.Scatter(
         x=[x_boss, x_boss],
-        y=[0, max(y_vals)*1.1],
+        y=[0, max(compute_damage(x_vals, defense=compute_def(tree_completion=min(tree)) if should_compute_def else defense))*1.1],
         mode='lines',
         line=dict(dash='dash', color='gray'),
         showlegend=False,
