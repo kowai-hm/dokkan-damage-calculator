@@ -3,7 +3,6 @@ import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
 import base64
-import pyperclip
 from PIL import Image
 from io import BytesIO
 from urllib.parse import urlencode
@@ -57,8 +56,6 @@ def encode_image(path):
 
 
 # ---- PARAMETRES
-print("ALLOOOOOOOOOOOOOOOOOOO")
-print(st.query_params)
 title = st.text_input("Titre", value=st.query_params["title"] if "title" in st.query_params else "Dégâts encaissés selon la valeur adverse")
 uploaded_file = st.file_uploader("Uploader une image de perso...", type=["png", "jpg", "jpeg"])
 should_compute_def = st.checkbox("DEF à calculer ?", value=int(st.query_params["shouldComputeDef"]) if "shouldComputeDef" in st.query_params else False)
@@ -396,8 +393,7 @@ if st.button("🔗 Partager feuille de calcul"):
     query_string = urlencode(params)
     base_url = "https://dokkan-calculator.streamlit.app/"
     full_url = f"{base_url}?{query_string}"
-    pyperclip.copy(full_url)
-    st.markdown(f"URL copiée dans le presse-papiers !")
+    st.code(full_url)
     
 # STREAMLIT
 st.plotly_chart(fig, use_container_width=True)
