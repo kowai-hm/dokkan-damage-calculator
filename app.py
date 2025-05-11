@@ -3,8 +3,10 @@ import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
 import base64
+import pyperclip
 from PIL import Image
 from io import BytesIO
+from urllib.parse import urlencode
 
 
 st.set_page_config(layout="wide")
@@ -55,40 +57,51 @@ def encode_image(path):
 
 
 # ---- PARAMETRES
-title = st.text_input("Titre", value="Dégâts encaissés selon la valeur adverse")
+print("ALLOOOOOOOOOOOOOOOOOOO")
+print(st.query_params)
+title = st.text_input("Titre", value=st.query_params["title"] if "title" in st.query_params else "Dégâts encaissés selon la valeur adverse")
 uploaded_file = st.file_uploader("Uploader une image de perso...", type=["png", "jpg", "jpeg"])
-should_compute_def = st.checkbox("DEF à calculer ?", value=False)
+should_compute_def = st.checkbox("DEF à calculer ?", value=int(st.query_params["shouldComputeDef"]) if "shouldComputeDef" in st.query_params else False)
 if should_compute_def:
-    leader = st.number_input("Leader (%)", value=220)
-    base_def = st.number_input("DEF de base", value=9338)
-    type_selection = st.selectbox("Type", list(trees.keys()), index=0)
+    leader = st.number_input("Leader (%)", value=int(st.query_params["leader"]) if "leader" in st.query_params else 220)
+    base_def = st.number_input("DEF de base", value=int(st.query_params["baseDef"]) if "baseDef" in st.query_params else 9338)
+    type_selection = st.selectbox("Type", list(trees.keys()), index=int(st.query_params["typeSelection"]) if "typeSelection" in st.query_params else 0)
     tree = trees[type_selection]
-    rank_s_selection = st.checkbox("Rang S ?", value=False)
+    rank_s_selection = st.checkbox("Rang S ?", value=int(st.query_params["rankS"]) if "rankS" in st.query_params else False)
     if rank_s_selection:
         tree = [int(v*1.4) for v in tree]
-    free_unit_selection = st.checkbox("F2P ?", value=False)
+    free_unit_selection = st.checkbox("F2P ?", value=int(st.query_params["f2p"]) if "f2p" in st.query_params else False)
     if free_unit_selection:
         tree = [int(v*0.6) for v in tree]
-    tree_completion_selection = st.selectbox("Complétion de l'arbre", tree, index=0)
+    tree_completion_selection = st.selectbox("Complétion de l'arbre", tree, index=int(st.query_params["treeCompletionSelection"]) 
+                                                                                  if "treeCompletionSelection" in st.query_params else 0)
     tree_completion = tree_completion_selection
-    base = st.number_input("Base (%)", value=0)
-    multiplicative_buff_1 = st.number_input("Boost multiplicatif 1 (%)", value=0)
-    is_multiplicative_buff_1_activated = st.checkbox("Boost multiplicatif 1 activé ?", value=False)
-    multiplicative_buff_2 = st.number_input("Boost multiplicatif 2 (%)", value=0)
-    is_multiplicative_buff_2_activated = st.checkbox("Boost multiplicatif 2 activé ?", value=False)
-    special_stack_value = st.number_input("Valeur de stack #1 de DEF sur la spé (%)", value=30)
-    special_stack = st.number_input("Nombre de stacks #1 de DEF sur la spé", value=0)
-    special_stack_value_2 = st.number_input("Valeur de stack #2 de DEF sur la spé (%)", value=30)
-    special_stack_2 = st.number_input("Nombre de stacks #2 de DEF sur la spé", value=0)
-    links = st.number_input("Liens (%)", value=0)
-    active_skill_buff = st.number_input("Boost par active skill (%)", value=0)
-    is_active_skill_used = st.checkbox("Active skill utilisé ?", value=False)
+    base = st.number_input("Base (%)", value=int(st.query_params["base"]) if "base" in st.query_params else 0)
+    multiplicative_buff_1 = st.number_input("Boost multiplicatif 1 (%)", value=int(st.query_params["MB1"]) if "MB1" in st.query_params else 0)
+    is_multiplicative_buff_1_activated = st.checkbox("Boost multiplicatif 1 activé ?", value=int(st.query_params["MB1active"]) 
+                                                                                             if "MB1active" in st.query_params else False)
+    multiplicative_buff_2 = st.number_input("Boost multiplicatif 2 (%)", value=int(st.query_params["MB2"]) if "MB2" in st.query_params else 0)
+    is_multiplicative_buff_2_activated = st.checkbox("Boost multiplicatif 2 activé ?", value=int(st.query_params["MB2active"]) 
+                                                                                             if "MB2active" in st.query_params else False)
+    special_stack_value = st.number_input("Valeur de stack #1 de DEF sur la spé (%)", value=int(st.query_params["specialStackValue1"]) 
+                                                                                            if "specialStackValue1" in st.query_params else 30)
+    special_stack = st.number_input("Nombre de stacks #1 de DEF sur la spé", value=int(st.query_params["specialStack1"]) 
+                                                                                   if "specialStack1" in st.query_params else 0)
+    special_stack_value_2 = st.number_input("Valeur de stack #2 de DEF sur la spé (%)", value=int(st.query_params["specialStackValue2"]) 
+                                                                                              if "specialStackValue2" in st.query_params else 30)
+    special_stack_2 = st.number_input("Nombre de stacks #2 de DEF sur la spé", value=int(st.query_params["specialStack2"]) 
+                                                                                   if "specialStack2" in st.query_params else 0)
+    links = st.number_input("Liens (%)", value=int(st.query_params["links"]) if "links" in st.query_params else 0)
+    active_skill_buff = st.number_input("Boost par active skill (%)", value=int(st.query_params["AS"]) if "AS" in st.query_params else 0)
+    is_active_skill_used = st.checkbox("Active skill utilisé ?", value=int(st.query_params["ASactive"]) if "ASactive" in st.query_params else False)
 else:
-    defense = st.number_input("Défense", value=0)
-damage_reduction = st.number_input("Réduction de dégâts (%)", value=0)
-type_defense_boost = st.select_slider("Défense de type boostée", options=[5, 6, 7, 8, 10, 15])
-guard_selection = st.selectbox("Multiplicateur de type", list(guard.keys()), index=3)
-is_guard_activated = st.checkbox("Garde passive activée ?", value=False)
+    defense = st.number_input("Défense", value=int(st.query_params["defense"]) if "defense" in st.query_params else 0)
+damage_reduction = st.number_input("Réduction de dégâts (%)", value=int(st.query_params["damageReduction"]) if "damageReduction" in st.query_params else 0)
+type_defense_boost = st.select_slider("Défense de type boostée", options=[5, 6, 7, 8, 10, 15], value=int(st.query_params["defenseTypeBoost"])
+                                                                                                     if "defenseTypeBoost" in st.query_params else 5)
+guard_selection = st.selectbox("Multiplicateur de type", list(guard.keys()), index=int(st.query_params["guardSelection"]) 
+                                                                                   if "guardSelection" in st.query_params else 3)
+is_guard_activated = st.checkbox("Garde passive activée ?", value=int(st.query_params["guard"]) if "guard" in st.query_params else False)
 type_multiplier = guard[guard_selection]["type_multiplier"]
 guard_multiplier = guard[guard_selection]["guard_multiplier"]
 
@@ -246,7 +259,8 @@ for name, x_boss in bosses.items():
     )
 
 # Image associée à la courbe principale
-curve_image = encode_image(curve_image_path if not uploaded_file else uploaded_file)
+curve_image = f"data:image/png;base64,{st.query_params["img"]}" if "img" in st.query_params else \
+              encode_image(curve_image_path if not uploaded_file else uploaded_file) 
 fig.add_layout_image(
     dict(
         source=curve_image,
@@ -344,5 +358,46 @@ if should_compute_def:
         align="left"
     )
 
+# BOUTON PARTAGE DE FEUILLE DE CALCUL PRECISE
+if st.button("🔗 Partager feuille de calcul"):
+    params = {
+        "title": title,
+        "shouldComputeDef": int(should_compute_def),
+        "damageReduction": damage_reduction,
+        "defenseTypeBoost": type_defense_boost,
+        "guardSelection": list(guard.keys()).index(guard_selection),
+        "guard": int(is_guard_activated),
+        #"img": curve_image.split(",")[1]
+    }
+    if should_compute_def:
+        params |= {
+            "leader": leader,
+            "baseDef": base_def,
+            "typeSelection": list(trees.keys()).index(type_selection),
+            "rankS": int(rank_s_selection),
+            "f2p": int(free_unit_selection),
+            "treeCompletionSelection": tree.index(tree_completion_selection),
+            "base": base,
+            "MB1": multiplicative_buff_1,
+            "MB1active": int(is_multiplicative_buff_1_activated),
+            "MB2": multiplicative_buff_2,
+            "MB2active": int(is_multiplicative_buff_2_activated),
+            "specialStackValue1": special_stack_value,
+            "specialStack1": special_stack,
+            "specialStackValue2": special_stack_value_2,
+            "specialStack2": special_stack_2,
+            "links": links,
+            "AS": active_skill_buff,
+            "ASactive": int(is_active_skill_used),
+        }
+    else:
+        params["defense"] = defense
+
+    query_string = urlencode(params)
+    base_url = "https://dokkan-calculator.streamlit.app/"
+    full_url = f"{base_url}?{query_string}"
+    pyperclip.copy(full_url)
+    st.markdown(f"URL copiée dans le presse-papiers !")
+    
 # STREAMLIT
 st.plotly_chart(fig, use_container_width=True)
