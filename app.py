@@ -3,6 +3,7 @@ import streamlit as st
 import numpy as np
 import plotly.graph_objects as go
 import base64
+import requests
 from PIL import Image
 from io import BytesIO
 from urllib.parse import urlencode
@@ -58,6 +59,7 @@ def encode_image(path):
 # ---- PARAMETRES
 title = st.text_input("Titre", value=st.query_params["title"] if "title" in st.query_params else "Dégâts encaissés selon la valeur adverse")
 uploaded_file = st.file_uploader("Uploader une image de perso...", type=["png", "jpg", "jpeg"])
+url_file = st.text_input("URL pour une image de perso...", value=st.query_params["img"] if "img" in st.query_params else None)
 should_compute_def = st.checkbox("DEF à calculer ?", value=int(st.query_params["shouldComputeDef"]) if "shouldComputeDef" in st.query_params else False)
 if should_compute_def:
     leader = st.number_input("Leader (%)", value=int(st.query_params["leader"]) if "leader" in st.query_params else 220)
@@ -256,8 +258,12 @@ for name, x_boss in bosses.items():
     )
 
 # Image associée à la courbe principale
-curve_image = f"data:image/png;base64,{st.query_params["img"]}" if "img" in st.query_params else \
-              encode_image(curve_image_path if not uploaded_file else uploaded_file) 
+if url_file:
+    curve_image = f"data:image/png;base64,{base64.b64encode(requests.get(url_file).content).decode('utf-8')}"
+elif uploaded_file:
+    curve_image = encode_image(uploaded_file)
+else:
+    curve_image = encode_image(curve_image_path) 
 fig.add_layout_image(
     dict(
         source=curve_image,
@@ -307,7 +313,6 @@ fig.add_annotation(
 )
 
 if should_compute_def:
-
     # ---- Dégradés de couleur selon la valeur de l'arbre pour représenter son impact
     fill_colors = [
         'rgba(230, 159, 0, 0.3)',
@@ -364,7 +369,7 @@ if st.button("🔗 Partager feuille de calcul"):
         "defenseTypeBoost": type_defense_boost,
         "guardSelection": list(guard.keys()).index(guard_selection),
         "guard": int(is_guard_activated),
-        #"img": curve_image.split(",")[1]
+        "img": url_file
     }
     if should_compute_def:
         params |= {
