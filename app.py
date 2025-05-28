@@ -59,7 +59,7 @@ def encode_image(path):
 # ---- PARAMETRES
 title = st.text_input("Titre", value=st.query_params["title"] if "title" in st.query_params else "Dégâts encaissés selon la valeur adverse")
 uploaded_file = st.file_uploader("Uploader une image de perso...", type=["png", "jpg", "jpeg"])
-url_file = st.text_input("URL pour une image de perso...", value=st.query_params["img"] if "img" in st.query_params else None)
+url_file = st.text_input("URL pour une image de perso...", value=st.query_params["img"] if "img" in st.query_params else "")
 should_compute_def = st.checkbox("DEF à calculer ?", value=int(st.query_params["shouldComputeDef"]) if "shouldComputeDef" in st.query_params else False)
 if should_compute_def:
     leader = st.number_input("Leader (%)", value=int(st.query_params["leader"]) if "leader" in st.query_params else 220)
