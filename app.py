@@ -76,6 +76,7 @@ if should_compute_def:
                                                                                   if "treeCompletionSelection" in st.query_params else 0)
     tree_completion = tree_completion_selection
     base = st.number_input("Base (%)", value=int(st.query_params["base"]) if "base" in st.query_params else 0)
+    support = st.number_input("Support non multiplicatif (%)", value=int(st.query_params["support"]) if "support" in st.query_params else 0)
     multiplicative_buff_1 = st.number_input("Boost multiplicatif 1 (%)", value=int(st.query_params["MB1"]) if "MB1" in st.query_params else 0)
     is_multiplicative_buff_1_activated = st.checkbox("Boost multiplicatif 1 activé ?", value=int(st.query_params["MB1active"]) 
                                                                                              if "MB1active" in st.query_params else False)
@@ -93,6 +94,8 @@ if should_compute_def:
     links = st.number_input("Liens (%)", value=int(st.query_params["links"]) if "links" in st.query_params else 0)
     active_skill_buff = st.number_input("Boost par active skill (%)", value=int(st.query_params["AS"]) if "AS" in st.query_params else 0)
     is_active_skill_used = st.checkbox("Active skill utilisé ?", value=int(st.query_params["ASactive"]) if "ASactive" in st.query_params else False)
+    item = st.number_input("Boost par item (%)", value=int(st.query_params["item"]) if "item" in st.query_params else 0)
+    is_item_active = st.checkbox("Item actif ?", value=int(st.query_params["itemActive"]) if "itemActive" in st.query_params else False)
 else:
     defense = st.number_input("Défense", value=int(st.query_params["defense"]) if "defense" in st.query_params else 0)
 damage_reduction = st.number_input("Réduction de dégâts (%)", value=int(st.query_params["damageReduction"]) if "damageReduction" in st.query_params else 0)
@@ -110,15 +113,16 @@ if should_compute_def:
                     multiplicative_buff_2=multiplicative_buff_2, is_multiplicative_buff_1_activated=is_multiplicative_buff_1_activated,
                     is_multiplicative_buff_2_activated=is_multiplicative_buff_2_activated, special_stack_value=special_stack_value, 
                     special_stack=special_stack, special_stack_value_2=special_stack_value_2, special_stack_2=special_stack_2, links=links, 
-                    active_skill_buff=active_skill_buff, is_active_skill_used=is_active_skill_used):
+                    active_skill_buff=active_skill_buff, is_active_skill_used=is_active_skill_used, support=support, item=item, is_item_active=is_item_active):
         defense = (
             (base_def + tree_completion) 
             // (1/(1 + leader*2/100))
-            // (1/(1 + base/100)) 
+            // (1/(1 + base/100 + support/100)) 
+            // (1/(1 + item/100 * int(is_item_active)))
+            // (1/(1 + active_skill_buff/100 * int(is_active_skill_used)))
+            // (1/(1 + links/100))
             // (1/(1 + multiplicative_buff_1/100*is_multiplicative_buff_1_activated + multiplicative_buff_2/100*is_multiplicative_buff_2_activated))
             // (1/(1 + special_stack_value/100 * special_stack + special_stack_value_2/100 * special_stack_2)) 
-            // (1/(1 + links/100))
-            // (1/(1 + active_skill_buff/100 * int(is_active_skill_used)))
         )
         return defense
     defense = compute_def()
@@ -269,6 +273,8 @@ fig.add_layout_image(
         source=curve_image,
         xref="paper",
         yref="paper",
+        #x=-0.07,
+        #y=1.12,
         x=-0.07,
         y=1.18,
         sizex=0.15,
@@ -283,6 +289,8 @@ fig.add_layout_image(
 fig.add_annotation(
     xref="paper",
     yref="paper",
+    #x=0.01,
+    #y=1.12,
     x=0,
     y=1.14,
     xanchor="left",
@@ -302,6 +310,8 @@ slope = p2 - p1
 fig.add_annotation(
     xref="paper",
     yref="paper",
+    #x=0.01,
+    #y=1.10,
     x=0,
     y=1.10,
     xanchor="left",
@@ -350,6 +360,8 @@ if should_compute_def:
     fig.add_annotation(
         xref="paper",
         yref="paper",
+        #x=0.01,
+        #y=1.08,
         x=0,
         y=1.06,
         xanchor="left",
@@ -391,6 +403,9 @@ if st.button("🔗 Partager feuille de calcul"):
             "links": links,
             "AS": active_skill_buff,
             "ASactive": int(is_active_skill_used),
+            "support": support,
+            "item": item,
+            "itemActive": int(is_item_active)
         }
     else:
         params["defense"] = defense
