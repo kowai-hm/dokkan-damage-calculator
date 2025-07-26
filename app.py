@@ -35,7 +35,9 @@ bosses = {
     "Jiren": 5_740_000,
     "Cell Max": 6_562_500,
     "Goku Blue": 4_560_000,
-    "Vegeta Blue": 4_440_000
+    "Vegeta Blue": 4_440_000,
+    "Trunks SoH": 7_700_000,
+    "Gogeta SSJ4": 9_360_000
 }
 
 image_paths = {
@@ -43,7 +45,9 @@ image_paths = {
     "Jiren": "images/jiren.png",
     "Cell Max": "images/cell_max.png",
     "Goku Blue": "images/goku_blue.png",
-    "Vegeta Blue": "images/vegeta_blue.png"
+    "Vegeta Blue": "images/vegeta_blue.png",
+    "Trunks SoH": "images/trunks.png",
+    "Gogeta SSJ4": "images/gogeta_ssj4.png"
 }
 
 curve_image_path = "images/unit.png"
@@ -60,10 +64,11 @@ def encode_image(path):
 title = st.text_input("Titre", value=st.query_params["title"] if "title" in st.query_params else "Dégâts encaissés selon la valeur adverse")
 uploaded_file = st.file_uploader("Uploader une image de perso...", type=["png", "jpg", "jpeg"])
 url_file = st.text_input("URL pour une image de perso...", value=st.query_params["img"] if "img" in st.query_params else "")
-should_compute_def = st.checkbox("DEF à calculer ?", value=int(st.query_params["shouldComputeDef"]) if "shouldComputeDef" in st.query_params else False)
+should_compute_def = st.checkbox("DÉF à calculer ?", value=int(st.query_params["shouldComputeDef"]) if "shouldComputeDef" in st.query_params else False)
 if should_compute_def:
     leader = st.number_input("Leader (%)", value=int(st.query_params["leader"]) if "leader" in st.query_params else 220)
-    base_def = st.number_input("DEF de base", value=int(st.query_params["baseDef"]) if "baseDef" in st.query_params else 9338)
+    base_def = st.number_input("DÉF de base", value=int(st.query_params["baseDef"]) if "baseDef" in st.query_params else 9338)
+    equips = st.number_input("Équipements de DÉF", value=int(st.query_params["equips"]) if "equips" in st.query_params else 0)
     type_selection = st.selectbox("Type", list(trees.keys()), index=int(st.query_params["typeSelection"]) if "typeSelection" in st.query_params else 0)
     tree = trees[type_selection]
     rank_s_selection = st.checkbox("Rang S ?", value=int(st.query_params["rankS"]) if "rankS" in st.query_params else False)
@@ -83,13 +88,13 @@ if should_compute_def:
     multiplicative_buff_2 = st.number_input("Boost multiplicatif 2 (%)", value=int(st.query_params["MB2"]) if "MB2" in st.query_params else 0)
     is_multiplicative_buff_2_activated = st.checkbox("Boost multiplicatif 2 activé ?", value=int(st.query_params["MB2active"]) 
                                                                                              if "MB2active" in st.query_params else False)
-    special_stack_value = st.number_input("Valeur de stack #1 de DEF sur la spé (%)", value=int(st.query_params["specialStackValue1"]) 
+    special_stack_value = st.number_input("Valeur de stack #1 de DÉF sur la spé (%)", value=int(st.query_params["specialStackValue1"]) 
                                                                                             if "specialStackValue1" in st.query_params else 30)
-    special_stack = st.number_input("Nombre de stacks #1 de DEF sur la spé", value=int(st.query_params["specialStack1"]) 
+    special_stack = st.number_input("Nombre de stacks #1 de DÉF sur la spé", value=int(st.query_params["specialStack1"]) 
                                                                                    if "specialStack1" in st.query_params else 0)
-    special_stack_value_2 = st.number_input("Valeur de stack #2 de DEF sur la spé (%)", value=int(st.query_params["specialStackValue2"]) 
+    special_stack_value_2 = st.number_input("Valeur de stack #2 de DÉF sur la spé (%)", value=int(st.query_params["specialStackValue2"]) 
                                                                                               if "specialStackValue2" in st.query_params else 30)
-    special_stack_2 = st.number_input("Nombre de stacks #2 de DEF sur la spé", value=int(st.query_params["specialStack2"]) 
+    special_stack_2 = st.number_input("Nombre de stacks #2 de DÉF sur la spé", value=int(st.query_params["specialStack2"]) 
                                                                                    if "specialStack2" in st.query_params else 0)
     links = st.number_input("Liens (%)", value=int(st.query_params["links"]) if "links" in st.query_params else 0)
     active_skill_buff = st.number_input("Boost par active skill (%)", value=int(st.query_params["AS"]) if "AS" in st.query_params else 0)
@@ -109,13 +114,13 @@ guard_multiplier = guard[guard_selection]["guard_multiplier"]
 
 # ---- CALCUL
 if should_compute_def:
-    def compute_def(base_def=base_def, tree_completion=tree_completion, leader=leader, base=base, multiplicative_buff_1=multiplicative_buff_1, 
+    def compute_def(base_def=base_def, equips=equips, tree_completion=tree_completion, leader=leader, base=base, multiplicative_buff_1=multiplicative_buff_1, 
                     multiplicative_buff_2=multiplicative_buff_2, is_multiplicative_buff_1_activated=is_multiplicative_buff_1_activated,
                     is_multiplicative_buff_2_activated=is_multiplicative_buff_2_activated, special_stack_value=special_stack_value, 
                     special_stack=special_stack, special_stack_value_2=special_stack_value_2, special_stack_2=special_stack_2, links=links, 
                     active_skill_buff=active_skill_buff, is_active_skill_used=is_active_skill_used, support=support, item=item, is_item_active=is_item_active):
         defense = (
-            (base_def + tree_completion) 
+            (base_def + equips + tree_completion) 
             // (1/(1 + leader*2/100))
             // (1/(1 + base/100 + support/100)) 
             // (1/(1 + item/100 * int(is_item_active)))
@@ -387,6 +392,7 @@ if st.button("🔗 Partager feuille de calcul"):
         params |= {
             "leader": leader,
             "baseDef": base_def,
+            "equips": equips,
             "typeSelection": list(trees.keys()).index(type_selection),
             "rankS": int(rank_s_selection),
             "f2p": int(free_unit_selection),
