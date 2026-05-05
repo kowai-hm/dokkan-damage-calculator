@@ -67,7 +67,7 @@ def encode_image(path):
 
 
 # ---- PARAMETRES
-title = st.text_input("Titre", value=st.query_params["title"] if "title" in st.query_params else "Dégâts encaissés selon la valeur adverse")
+title = st.text_input("Titre", value=st.query_params["title"] if "title" in st.query_params else "Dégâts encaissés selon les PV restants")
 uploaded_file = st.file_uploader("Uploader une image de perso...", type=["png", "jpg", "jpeg"])
 url_file = st.text_input("URL pour une image de perso...", value=st.query_params["img"] if "img" in st.query_params else "")
 should_compute_def = st.checkbox("DÉF à calculer ?", value=int(st.query_params["shouldComputeDef"]) if "shouldComputeDef" in st.query_params else False)
@@ -75,9 +75,6 @@ if should_compute_def:
     leader = st.number_input("Leader (%)", value=int(st.query_params["leader"]) if "leader" in st.query_params else 220)
     base_def = st.number_input("DÉF de base", value=int(st.query_params["baseDef"]) if "baseDef" in st.query_params else 9338)
     equips = st.number_input("Équipements de DÉF", value=int(st.query_params["equips"]) if "equips" in st.query_params else 0)
-    for tree in trees:
-        god_equips_gap = 3700 - equips
-        trees[tree].append(trees[tree][-1] + (god_equips_gap if god_equips_gap > 0 else equips))
     type_selection = st.selectbox("Type", list(trees.keys()), index=int(st.query_params["typeSelection"]) if "typeSelection" in st.query_params else 0)
     tree = trees[type_selection]
     rank_s_selection = st.checkbox("Rang S ?", value=int(st.query_params["rankS"]) if "rankS" in st.query_params else False)
@@ -112,6 +109,9 @@ if should_compute_def:
     is_item_active = st.checkbox("Item actif ?", value=int(st.query_params["itemActive"]) if "itemActive" in st.query_params else False)
 else:
     defense = st.number_input("Défense", value=int(st.query_params["defense"]) if "defense" in st.query_params else 0)
+    defense_at_full_pv = defense
+hp_variable_boost = st.number_input("Boost de DÉF selon les PV — max à 100% PV (%)", value=int(st.query_params["hpVariableBoost"]) if "hpVariableBoost" in st.query_params else 0)
+att_fixe = st.number_input("Valeur d'ATT adverse (fixe)", min_value=0, value=int(st.query_params["attFixe"]) if "attFixe" in st.query_params else 10_000_000, format="%d")
 damage_reduction = st.number_input("Réduction de dégâts (%)", value=int(st.query_params["damageReduction"]) if "damageReduction" in st.query_params else 0)
 type_defense_boost = st.select_slider("Défense de type boostée", options=[5, 6, 7, 8, 10, 15], value=int(st.query_params["defenseTypeBoost"])
                                                                                                      if "defenseTypeBoost" in st.query_params else 5)
@@ -127,11 +127,12 @@ if should_compute_def:
                     multiplicative_buff_2=multiplicative_buff_2, is_multiplicative_buff_1_activated=is_multiplicative_buff_1_activated,
                     is_multiplicative_buff_2_activated=is_multiplicative_buff_2_activated, special_stack_value=special_stack_value, 
                     special_stack=special_stack, special_stack_value_2=special_stack_value_2, special_stack_2=special_stack_2, links=links, 
-                    active_skill_buff=active_skill_buff, is_active_skill_used=is_active_skill_used, support=support, item=item, is_item_active=is_item_active):
+                    active_skill_buff=active_skill_buff, is_active_skill_used=is_active_skill_used, support=support, item=item, is_item_active=is_item_active,
+                    hp_variable_boost=hp_variable_boost, hp_boost_x=1.0):
         defense = (
             (base_def + equips + tree_completion) 
             // (1/(1 + leader*2/100))
-            // (1/(1 + base/100 + support/100)) 
+            // (1/(1 + base/100 + hp_variable_boost*hp_boost_x/100 + support/100)) 
             // (1/(1 + item/100 * int(is_item_active)))
             // (1/(1 + active_skill_buff/100 * int(is_active_skill_used)))
             // (1/(1 + links/100))
@@ -139,40 +140,40 @@ if should_compute_def:
             // (1/(1 + special_stack_value/100 * special_stack + special_stack_value_2/100 * special_stack_2)) 
         )
         return defense
-    defense = compute_def()
+    defense = compute_def(hp_boost_x=1.0)
 
-def compute_damage(x, defense=defense, damage_reduction=damage_reduction, type_multiplier=type_multiplier, guard_multiplier=guard_multiplier, 
+# defense_at_full_pv used as the reference value for annotations and non-compute_def mode
+defense_at_full_pv = defense
+
+def compute_damage(hp_x, defense=None, damage_reduction=damage_reduction, type_multiplier=type_multiplier, guard_multiplier=guard_multiplier, 
                    type_defense_boost=type_defense_boost, is_guard_activated=is_guard_activated):
+    # hp_x : fraction de PV restants (1.0 = 100% PV, 0.0 = 0% PV)
+    # Si defense n'est pas fourni, on le recalcule avec le boost PV courant
+    if defense is None:
+        if should_compute_def:
+            defense = compute_def(hp_boost_x=hp_x)
+        else:
+            defense = defense_at_full_pv
     # Type defense boost only applies if natural type advantage is applicable
     should_apply_tdb = guard_multiplier == 0.5
     if is_guard_activated:
         type_multiplier = 0.8
         guard_multiplier = 0.5
     # Average variance = 1.015
-    damage = (x * 1.015 * (type_multiplier - 0.01 * type_defense_boost * int(should_apply_tdb)) * (1-damage_reduction/100) - defense) * guard_multiplier
+    damage = (att_fixe * 1.015 * (type_multiplier - 0.01 * type_defense_boost * int(should_apply_tdb)) * (1-damage_reduction/100) - defense) * guard_multiplier
     # Minimum damage occurs when the result of the damage equation is less than 150 ; actually, random value between 9 and 132
     return np.where(damage <= 150, 0, damage)
 
-def find_damage_threshold(damage, defense=defense, damage_reduction=damage_reduction, type_multiplier=type_multiplier, guard_multiplier=guard_multiplier, 
-                          type_defense_boost=type_defense_boost, is_guard_activated=is_guard_activated):
-    # Type defense boost only applies if natural type advantage is applicable
-    should_apply_tdb = guard_multiplier == 0.5
-    if is_guard_activated:
-        type_multiplier = 0.8
-        guard_multiplier = 0.5
-    threshold = (damage/guard_multiplier + defense)/(1.015 * (type_multiplier - 0.01 * type_defense_boost * int(should_apply_tdb)) * (1-damage_reduction/100))
-    return threshold
-
-
-nodamage_threshold = find_damage_threshold(150)  # Minimum damage occurs when the result of the damage equation is less than 150
 
 # ---- CALCULATEUR
 col1, col2 = st.columns(2)
 with col1:
-    st.markdown("Valeur d'ATT adverse")
+    st.markdown("PV restants (%)")
     x_custom = st.number_input(
-        "Valeur d'ATT adverse",
+        "PV restants (%)",
         min_value=0,
+        max_value=100,
+        value=100,
         format="%d",
         label_visibility="collapsed"
     )
@@ -180,7 +181,7 @@ with col2:
     st.markdown("Dégâts encaissés")
     y_custom = st.number_input(
         "Dégâts encaissés",
-        value=math.ceil(compute_damage(x_custom)),
+        value=math.ceil(float(compute_damage(x_custom))),
         format="%d",
         disabled=True,
         label_visibility="collapsed"
@@ -197,83 +198,58 @@ fig.update_layout(
         y=0.99,
         xanchor="center"
     ),
-    xaxis_title="Valeur adverse",
+    xaxis_title="PV restants (%)",
     yaxis_title="Dégâts encaissés",
     hovermode="x unified",
     height=600,
-    xaxis_tickformat=",.0f",  # Formatage de l'axe X pour afficher les milliers avec des virgules (ou espaces)
+    xaxis_tickformat=".0f",
     yaxis_tickformat=",.0f",
     xaxis=dict(
-        tickfont=dict(size=22),  # Taille des labels sur l'axe X
-        showgrid=True,       # Active la grille horizontale
+        tickfont=dict(size=22),
+        showgrid=True,
         gridcolor='lightgray',
-        gridwidth=1
+        gridwidth=1,
+        ticksuffix="%",
+        autorange="reversed",  # 100% à gauche, 0% à droite
     ),
     yaxis=dict(
-        tickfont=dict(size=22),  # Taille des labels sur l'axe Y
-        showgrid=True,       # Active la grille horizontale
+        tickfont=dict(size=22),
+        showgrid=True,
         gridcolor='lightgray',
         gridwidth=1
     ),
     showlegend=False 
 )
 
-# Courbe principale
-x_vals = np.linspace(
-    max(0, min(nodamage_threshold, *bosses.values())-100_000), 
-    max(nodamage_threshold, *bosses.values())+100_000, 
-    15000)
+# Courbe principale : x = % PV de 0.0 à 1.0, affiché de 100 à 0
+x_vals = np.linspace(0.0, 1.0, 5000)
 y_vals = compute_damage(x_vals)
-fig.add_trace(go.Scatter(x=x_vals, y=y_vals, mode='lines', name='Dégâts', line=dict(color='orange')))
+fig.add_trace(go.Scatter(x=x_vals * 100, y=y_vals, mode='lines', name='Dégâts', line=dict(color='orange')))
 
-# Point au seuil d'annulation
-fig.add_trace(go.Scatter(
-        x=[nodamage_threshold], y=[0],
+# Point au seuil d'annulation (% PV où les dégâts deviennent nuls)
+# On cherche le hp_x tel que compute_damage(hp_x) = 0, par recherche binaire
+if float(compute_damage(1.0)) <= 0:
+    nodamage_pv_pct = 100.0  # Déjà annulé à 100% PV
+elif float(compute_damage(0.0)) > 0:
+    nodamage_pv_pct = None   # Jamais annulé
+else:
+    lo, hi = 0.0, 1.0
+    for _ in range(50):
+        mid = (lo + hi) / 2
+        if float(compute_damage(mid)) <= 0:
+            lo = mid
+        else:
+            hi = mid
+    nodamage_pv_pct = hi * 100
+
+if nodamage_pv_pct is not None and 0 <= nodamage_pv_pct <= 100:
+    fig.add_trace(go.Scatter(
+        x=[nodamage_pv_pct], y=[0],
         mode='markers',
         marker=dict(size=8, color='red'),
         name="Seuil d'annulation",
-        hovertemplate=f"Seuil d'annulation<br>Valeur adverse: {nodamage_threshold:,.0f}<extra></extra>".replace(",", " ")
+        hovertemplate=f"Seuil d'annulation<br>PV restants: {nodamage_pv_pct:.1f}%<extra></extra>"
     ))
-
-# Ajout des bosses, annotations, images
-encoded_images = {name: encode_image(path) for name, path in image_paths.items()}
-for name, x_boss in bosses.items():
-    y_boss = compute_damage(x_boss)
-    
-    # Ligne verticale
-    fig.add_trace(go.Scatter(
-        x=[x_boss, x_boss],
-        y=[0, max(compute_damage(x_vals, defense=compute_def(tree_completion=min(tree)) if should_compute_def else defense))*1.1],
-        mode='lines',
-        line=dict(dash='dash', color='gray'),
-        showlegend=False,
-        hoverinfo='skip'
-    ))
-    
-    # Point cliquable
-    fig.add_trace(go.Scatter(
-        x=[x_boss], y=[y_boss],
-        mode='markers',
-        marker=dict(size=8, color='red'),
-        name=name,
-        hovertemplate=f"{name}<br>Valeur adverse: {x_boss:,.0f}<br>Dégâts encaissés: {y_boss:,.0f}<extra></extra>".replace(",", " ")
-    ))
-
-    # Image du boss
-    fig.add_layout_image(
-        dict(
-            source=encoded_images[name],
-            xref="x",
-            yref="paper",
-            x=x_boss,
-            y=0.88,
-            sizex=500_000,
-            sizey=0.13,
-            xanchor="center",
-            yanchor="bottom",
-            layer="above"
-        )
-    )
 
 # Image associée à la courbe principale
 if url_file:
@@ -299,62 +275,56 @@ fig.add_layout_image(
     )
 )
 
-# Annotation avec la valeur de la défense sous l'image de l'unité analysée
+# Annotation avec la valeur de la défense à 100% PV
 fig.add_annotation(
     xref="paper",
     yref="paper",
-    #x=0,
-    #y=1.14,
     x=0.05,
     y=1.12,
     xanchor="left",
     yanchor="top",
-    text=f"Valeur de DEF: {defense:,.0f}".replace(",", " "),
+    text=f"Valeur de DEF (100% PV): {defense_at_full_pv:,.0f}".replace(",", " "),
     showarrow=False,
     font=dict(size=12, color="black"),
     align="left"
 )
 
-# ---- Ajouter l'annotation concernant la pente
-x1 = 100_000_000
-p1 = compute_damage(x1)
-x2 = 101_000_000
-p2 = compute_damage(x2)
-slope = p2 - p1
+# ---- Ajouter l'annotation concernant la pente (dégâts / % PV perdu)
+# On compare à 100% PV et 99% PV
+p1 = float(compute_damage(1.00))
+p2 = float(compute_damage(0.99))
+slope = p2 - p1  # augmentation des dégâts pour 1% de PV perdu
 fig.add_annotation(
     xref="paper",
     yref="paper",
-    #x=0,
-    #y=1.10,
     x=0.05,
     y=1.10,
     xanchor="left",
     yanchor="top",
-    text=f"Pente : + {slope:,.0f} dégâts / + {x2-x1:,.0f} ATT".replace(",", " "),
+    text=f"Pente : + {slope:,.0f} dégâts / 1% PV perdu".replace(",", " "),
     showarrow=False,
     font=dict(size=12, color="black"),
     align="left"
 )
 
 if should_compute_def:
-    # ---- Dégradés de couleur selon la valeur de l'arbre pour représenter son impact - convention Wong pour les daltoniens
+    # ---- Dégradés de couleur selon la valeur de l'arbre pour représenter son impact
     fill_colors = [
         'rgba(230, 159, 0, 0.3)',
         'rgba(86, 180, 233, 0.3)',
         'rgba(0, 158, 115, 0.3)',
-        'rgba(204, 121, 167, 0.3)',
-        'rgba(0, 114, 178, 0.3)'
+        'rgba(204, 121, 167, 0.3)'
     ]
 
     for i, (tree_completion1, tree_completion2) in enumerate(zip(tree, tree[1:])):
-        y1 = compute_damage(x_vals, defense=compute_def(tree_completion=tree_completion1))
-        y2 = compute_damage(x_vals, defense=compute_def(tree_completion=tree_completion2))
+        y1 = np.array([float(compute_damage(hx, defense=compute_def(tree_completion=tree_completion1, hp_boost_x=hx))) for hx in x_vals])
+        y2 = np.array([float(compute_damage(hx, defense=compute_def(tree_completion=tree_completion2, hp_boost_x=hx))) for hx in x_vals])
         
         y_min = np.minimum(y1, y2)
         y_max = np.maximum(y1, y2)
 
         fig.add_trace(go.Scatter(
-            x=np.concatenate([x_vals, x_vals[::-1]]),
+            x=np.concatenate([x_vals * 100, (x_vals * 100)[::-1]]),
             y=np.concatenate([y_min, y_max[::-1]]),
             fill='toself',
             fillcolor=fill_colors[i],
@@ -364,19 +334,17 @@ if should_compute_def:
     ))
 
     # ---- Ajouter l'annotation concernant l'impact de l'arbre sur la variation des dégâts encaissés 
-    y_min = compute_damage(x_vals, defense=compute_def(tree_completion=min(tree)))
-    y_max = compute_damage(x_vals, defense=compute_def(tree_completion=max(tree)))
-    for ymn, ymx in zip(y_min, y_max):
+    y_min_arr = np.array([float(compute_damage(hx, defense=compute_def(tree_completion=min(tree), hp_boost_x=hx))) for hx in x_vals])
+    y_max_arr = np.array([float(compute_damage(hx, defense=compute_def(tree_completion=max(tree), hp_boost_x=hx))) for hx in x_vals])
+    for ymn, ymx in zip(y_min_arr, y_max_arr):
         if ymn > 0 and ymx > 0:
             tree_impact = ymn - ymx
             break
     else:
-        tree_impact = np.inf if y_min[-1] > 0 else 0 # Si tous les points sont à zéro
+        tree_impact = np.inf if y_min_arr[-1] > 0 else 0  # Si tous les points sont à zéro
     fig.add_annotation(
         xref="paper",
         yref="paper",
-        #x=0,
-        #y=1.06,
         x=0.05,
         y=1.08,
         xanchor="left",
@@ -396,7 +364,9 @@ if st.button("🔗 Partager feuille de calcul"):
         "defenseTypeBoost": type_defense_boost,
         "guardSelection": list(guard.keys()).index(guard_selection),
         "guard": int(is_guard_activated),
-        "img": url_file
+        "img": url_file,
+        "attFixe": att_fixe,
+        "hpVariableBoost": hp_variable_boost,
     }
     if should_compute_def:
         params |= {
@@ -424,10 +394,11 @@ if st.button("🔗 Partager feuille de calcul"):
             "itemActive": int(is_item_active)
         }
     else:
-        params["defense"] = defense
+        params["defense"] = defense_at_full_pv
 
     query_string = urlencode(params)
     base_url = "https://dokkan-calculator.streamlit.app/"
+    #base_url = "http://192.168.0.102:8501/"
     full_url = f"{base_url}?{query_string}"
     st.code(full_url)
     
