@@ -97,6 +97,9 @@ if should_compute_def:
     multiplicative_buff_2 = st.number_input("Boost multiplicatif 2 (%)", value=int(st.query_params["MB2"]) if "MB2" in st.query_params else 0)
     is_multiplicative_buff_2_activated = st.checkbox("Boost multiplicatif 2 activé ?", value=int(st.query_params["MB2active"]) 
                                                                                              if "MB2active" in st.query_params else False)
+    multiplicative_buff_3 = st.number_input("Boost multiplicatif 3 (%)", value=int(st.query_params["MB3"]) if "MB3" in st.query_params else 0)
+    is_multiplicative_buff_3_activated = st.checkbox("Boost multiplicatif 3 activé ?", value=int(st.query_params["MB3active"]) 
+                                                                                             if "MB3active" in st.query_params else False)
     special_stack_value = st.number_input("Valeur de stack #1 de DÉF sur la spé (%)", value=int(st.query_params["specialStackValue1"]) 
                                                                                             if "specialStackValue1" in st.query_params else 30)
     special_stack = st.number_input("Nombre de stacks #1 de DÉF sur la spé", value=int(st.query_params["specialStack1"]) 
@@ -123,9 +126,10 @@ guard_multiplier = guard[guard_selection]["guard_multiplier"]
 
 # ---- CALCUL
 if should_compute_def:
-    def compute_def(base_def=base_def, equips=equips, tree_completion=tree_completion, leader=leader, base=base, multiplicative_buff_1=multiplicative_buff_1, 
-                    multiplicative_buff_2=multiplicative_buff_2, is_multiplicative_buff_1_activated=is_multiplicative_buff_1_activated,
-                    is_multiplicative_buff_2_activated=is_multiplicative_buff_2_activated, special_stack_value=special_stack_value, 
+    def compute_def(base_def=base_def, equips=equips, tree_completion=tree_completion, leader=leader, base=base, 
+                    multiplicative_buff_1=multiplicative_buff_1, multiplicative_buff_2=multiplicative_buff_2, multiplicative_buff_3=multiplicative_buff_3, 
+                    is_multiplicative_buff_1_activated=is_multiplicative_buff_1_activated, is_multiplicative_buff_2_activated=is_multiplicative_buff_2_activated, 
+                    is_multiplicative_buff_3_activated=is_multiplicative_buff_3_activated, special_stack_value=special_stack_value, 
                     special_stack=special_stack, special_stack_value_2=special_stack_value_2, special_stack_2=special_stack_2, links=links, 
                     active_skill_buff=active_skill_buff, is_active_skill_used=is_active_skill_used, support=support, item=item, is_item_active=is_item_active):
         defense = (
@@ -135,7 +139,7 @@ if should_compute_def:
             // (1/(1 + item/100 * int(is_item_active)))
             // (1/(1 + active_skill_buff/100 * int(is_active_skill_used)))
             // (1/(1 + links/100))
-            // (1/(1 + multiplicative_buff_1/100*is_multiplicative_buff_1_activated + multiplicative_buff_2/100*is_multiplicative_buff_2_activated))
+            // (1/(1 + multiplicative_buff_1/100*is_multiplicative_buff_1_activated + multiplicative_buff_2/100*is_multiplicative_buff_2_activated + multiplicative_buff_3/100*is_multiplicative_buff_3_activated))
             // (1/(1 + special_stack_value/100 * special_stack + special_stack_value_2/100 * special_stack_2)) 
         )
         return defense
@@ -412,6 +416,8 @@ if st.button("🔗 Partager feuille de calcul"):
             "MB1active": int(is_multiplicative_buff_1_activated),
             "MB2": multiplicative_buff_2,
             "MB2active": int(is_multiplicative_buff_2_activated),
+            "MB3": multiplicative_buff_3,
+            "MB3active": int(is_multiplicative_buff_3_activated),         
             "specialStackValue1": special_stack_value,
             "specialStack1": special_stack,
             "specialStackValue2": special_stack_value_2,
