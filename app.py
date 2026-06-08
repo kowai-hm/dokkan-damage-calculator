@@ -113,6 +113,8 @@ if should_compute_def:
     is_active_skill_used = st.checkbox("Active skill utilisé ?", value=int(st.query_params["ASactive"]) if "ASactive" in st.query_params else False)
     item = st.number_input("Boost par item (%)", value=int(st.query_params["item"]) if "item" in st.query_params else 0)
     is_item_active = st.checkbox("Item actif ?", value=int(st.query_params["itemActive"]) if "itemActive" in st.query_params else False)
+    field = st.number_input("Boost terrain (%)", value=int(st.query_params["field"]) if "field" in st.query_params else 0)
+    is_field_active = st.checkbox("Terrain actif ?", value=int(st.query_params["fieldActive"]) if "fieldActive" in st.query_params else False)
 else:
     defense = st.number_input("Défense", value=int(st.query_params["defense"]) if "defense" in st.query_params else 0)
 damage_reduction = st.number_input("Réduction de dégâts (%)", value=int(st.query_params["damageReduction"]) if "damageReduction" in st.query_params else 0)
@@ -131,7 +133,8 @@ if should_compute_def:
                     is_multiplicative_buff_1_activated=is_multiplicative_buff_1_activated, is_multiplicative_buff_2_activated=is_multiplicative_buff_2_activated, 
                     is_multiplicative_buff_3_activated=is_multiplicative_buff_3_activated, special_stack_value=special_stack_value, 
                     special_stack=special_stack, special_stack_value_2=special_stack_value_2, special_stack_2=special_stack_2, links=links, 
-                    active_skill_buff=active_skill_buff, is_active_skill_used=is_active_skill_used, support=support, item=item, is_item_active=is_item_active):
+                    active_skill_buff=active_skill_buff, is_active_skill_used=is_active_skill_used, support=support, item=item, is_item_active=is_item_active,
+                    field=field, is_field_active=is_field_active):
         defense = (
             (base_def + equips + tree_completion) 
             // (1/(1 + leader*2/100))
@@ -139,6 +142,7 @@ if should_compute_def:
             // (1/(1 + item/100 * int(is_item_active)))
             // (1/(1 + active_skill_buff/100 * int(is_active_skill_used)))
             // (1/(1 + links/100))
+            // (1/(1 + field/100 * int(is_field_active)))
             // (1/(1 + multiplicative_buff_1/100*is_multiplicative_buff_1_activated + multiplicative_buff_2/100*is_multiplicative_buff_2_activated + multiplicative_buff_3/100*is_multiplicative_buff_3_activated))
             // (1/(1 + special_stack_value/100 * special_stack + special_stack_value_2/100 * special_stack_2)) 
         )
@@ -425,6 +429,8 @@ if st.button("🔗 Partager feuille de calcul"):
             "links": links,
             "AS": active_skill_buff,
             "ASactive": int(is_active_skill_used),
+            "field": field,
+            "fieldActive": int(is_field_active),
             "support": support,
             "item": item,
             "itemActive": int(is_item_active)
